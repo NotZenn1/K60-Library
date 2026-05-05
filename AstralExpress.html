@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Astral Express Library | Advanced Database</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --hsr-blue: #00ccff;
+            --hsr-gold: #ffcc00;
+            --hsr-dark: #050a14;
+            --hsr-glass: rgba(10, 20, 38, 0.85);
+            --transition-smooth: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: #000;
+            color: white;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* --- BACKGROUNDS --- */
+        .bg-canvas {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: url('https://images.alphacoders.com/134/1341018.jpeg') center/cover no-repeat;
+            filter: brightness(0.4) saturate(1.2);
+            z-index: -1;
+        }
+
+        /* --- LOADING SCREEN --- */
+        #loading-screen {
+            position: fixed;
+            inset: 0;
+            background: var(--hsr-dark);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 1s ease;
+        }
+
+        .loader-bar { width: 300px; height: 2px; background: rgba(255,255,255,0.1); margin-top: 20px; position: relative; }
+        .loader-progress { position: absolute; height: 100%; width: 0%; background: var(--hsr-blue); box-shadow: 0 0 15px var(--hsr-blue); transition: width 0.1s linear; }
+
+        /* --- START SCREEN --- */
+        #start-screen {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.8)), url('https://static.wikia.nocookie.net/houkai-star-rail/images/2/27/Version_Highlight_Lookout_Cloud_Station.png/revision/latest/scale-to-width-down/1000?cb=20260313181409') center/cover no-repeat;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9000;
+            text-align: center;
+        }
+        #start-screen::before {
+            content: ""; position: absolute; inset: 0; 
+            background: radial-gradient(circle, rgba(0,0,0,0.2) 0%, rgba(5,10,20,0.9) 100%);
+        }
+
+        .welcome-content { position: relative; z-index: 1; animation: fadeIn 2s ease; }
+        .press-start {
+            font-family: 'Orbitron', sans-serif; font-size: 1.5rem; letter-spacing: 8px;
+            color: white; cursor: pointer; animation: pulse 2s infinite;
+            text-shadow: 0 0 20px white; margin-top: 30px;
+        }
+
+        /* --- MAIN INTERFACE --- */
+        #main-ui {
+            background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.8)), url('https://static.beebom.com/wp-content/uploads/2025/12/Planarcadia-visuals-HSR.jpg?w=1168&quality=75') center/cover no-repeat;
+            display: none; height: 100vh; padding: 40px;
+            grid-template-columns: 350px 1fr; gap: 30px;
+            animation: fadeIn 1.5s ease;
+            perspective: 1200px; /* Ditambahkan untuk efek 3D Panel */
+            transition: grid-template-columns 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55); /* Transisi Grid */
+        }
+        
+        /* Class untuk saat panel profil ditutup */
+        #main-ui.collapsed-layout {
+            grid-template-columns: 0px 1fr;
+            gap: 0;
+        }
+
+        .profile-panel {
+            background: linear-gradient(rgba(10, 20, 38, 0.9), rgba(10, 20, 38, 0.9)), 
+                        url('https://w0.peakpx.com/wallpaper/1000/664/HD-wallpaper-futuristic-city-blue-and-black-circuit-board-pattern.jpg');
+            background-size: cover; 
+            border: 1px solid rgba(0, 204, 255, 0.3);
+            border-radius: 4px; padding: 30px; backdrop-filter: blur(10px);
+            position: relative; clip-path: polygon(0 0, 100% 0, 100% 96%, 96% 100%, 0 100%);
+            transform-origin: left center;
+            transition: all 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55); /* Animasi 3D Bouncy */
+        }
+
+        /* Class animasi 3D profil tertutup */
+        .profile-panel.collapsed {
+            transform: rotateY(-90deg) scale(0.8);
+            opacity: 0;
+            padding: 0;
+            border: none;
+            visibility: hidden;
+        }
+
+        .profile-img {
+            width: 150px; height: 150px; border: 3px solid var(--hsr-gold);
+            border-radius: 50%; margin: 0 auto 20px; overflow: hidden;
+            box-shadow: 0 0 30px rgba(255, 204, 0, 0.4);
+        }
+        .profile-img img { width: 100%; height: 100%; object-fit: cover; }
+
+        /* --- BUTTONS --- */
+        .btn-add-float {
+            position: fixed; bottom: 40px; right: 40px;
+            width: 70px; height: 70px; border-radius: 50%;
+            background: var(--hsr-gold); color: black;
+            border: none; cursor: pointer; font-size: 2rem;
+            box-shadow: 0 0 20px rgba(255, 204, 0, 0.5);
+            transition: var(--transition-smooth); z-index: 100;
+            display: none;
+            justify-content: center; align-items: center;
+        }
+        .btn-add-float:hover { transform: scale(1.1) rotate(90deg); background: white; }
+
+        .btn-modal {
+            position: static !important; width: auto !important; height: auto !important; 
+            padding: 10px 30px !important; border-radius: 4px !important; 
+            font-size: 1rem !important; display: inline-flex !important;
+            transform: none !important;
+        }
+
+        /* --- CHARACTER CARD & OPTIONS --- */
+        .char-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 25px; overflow-y: auto; max-height: 75vh; padding-right: 15px;
+        }
+
+        .char-card {
+            background: var(--hsr-glass); border: 1px solid rgba(255,255,255,0.1);
+            height: 400px; position: relative; overflow: visible; transition: 0.4s;
+        }
+        .char-card:hover { border-color: var(--hsr-blue); transform: translateY(-5px); }
+        .char-card img { width: 100%; height: 60%; object-fit: contain ; opacity: 0.8; }
+
+        .char-details { padding: 15px; background: rgba(0,0,0,0.5); height: 40%; position: relative; }
+        
+        /* Titik 3 Styles */
+        .options-container { position: absolute; top: 10px; right: 10px; z-index: 10; }
+        .dots-btn {
+            background: none; border: none; color: white; font-size: 1.5rem;
+            cursor: pointer; opacity: 0.5; transition: 0.3s; padding: 5px;
+        }
+        .dots-btn:hover { opacity: 1; color: var(--hsr-blue); }
+
+        .options-menu {
+            position: absolute; top: 35px; right: 0; background: var(--hsr-dark);
+            border: 1px solid var(--hsr-blue); border-radius: 4px; display: none;
+            flex-direction: column; width: 120px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .options-menu button {
+            background: none; border: none; color: white; padding: 10px;
+            text-align: left; cursor: pointer; font-family: 'Rajdhani'; font-size: 0.9rem;
+        }
+        .options-menu button:hover { background: rgba(0, 204, 255, 0.2); }
+
+        .label-tag {
+            display: inline-block; padding: 2px 8px; font-size: 0.65rem;
+            background: var(--hsr-blue); color: black; font-weight: bold;
+            margin-right: 5px; margin-bottom: 5px; border-radius: 2px;
+        }
+
+        /* --- MODAL --- */
+        #add-modal {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+            display: none; justify-content: center; align-items: center; z-index: 10000;
+            backdrop-filter: blur(15px);
+        }
+
+        .search-box {
+            background: rgba(1, 1, 1, 0.59); border: 1px solid var(--hsr-blue);
+            padding: 12px; color: white; border-radius: 2px; outline: none; width: 100%;
+        }
+
+        /* --- FUTURISTIC TRANSITION --- */
+        #warp-transition {
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(circle at center,
+                rgba(0,204,255,0.9) 0%,
+                rgba(0,0,0,0.95) 60%);
+            z-index: 9500;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            overflow: hidden;
+            perspective: 1000px;
+        }
+
+        .warp-core {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            border: 3px solid rgba(255,255,255,0.8);
+            box-shadow:
+                0 0 30px #00ccff,
+                0 0 60px #00ccff,
+                0 0 120px #00ccff;
+            animation:
+                warpPulse 1s infinite alternate,
+                warpSpin 2s linear infinite;
+        }
+        
+        .warp-text {
+            margin-top: 50px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem;
+            letter-spacing: 15px;
+            color: var(--hsr-blue);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes warpPulse {
+            from { transform: scale(0.8) translateZ(-200px); opacity: 0.6; }
+            to { transform: scale(1.8) translateZ(100px); opacity: 1; }
+        }
+
+        @keyframes warpSpin {
+            from { rotate: 0deg; }
+            to { rotate: 360deg; }
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: var(--hsr-blue); }
+        
+        .toggle-btn {
+            background: rgba(0, 204, 255, 0.1);
+            border: 1px solid var(--hsr-blue);
+            color: var(--hsr-blue);
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: 0.3s;
+            box-shadow: 0 0 10px rgba(0, 204, 255, 0.2);
+        }
+        .toggle-btn:hover { background: var(--hsr-blue); color: black; }
+    </style>
+</head>
+<body>
+
+    <div class="bg-canvas"></div>
+
+    <div id="loading-screen">
+        <h2 style="font-family: Orbitron; letter-spacing: 5px;">CONNECTING TO ASTRAL EXPRESS LIBRARY...</h2>
+        <div class="loader-bar"><div class="loader-progress" id="bar"></div></div>
+        <p id="load-text" style="margin-top: 10px; color: var(--hsr-blue);">0%</p>
+    </div>
+
+    <div id="start-screen" onclick="enterApp()">
+        <div class="welcome-content">
+            <h1 style="color: var(--hsr-gold); font-size: 6rem; font-family: Orbitron; margin-bottom: 10px;">WELCOME</h1>
+            <h2 style="color: white; letter-spacing: 5px; font-family: Orbitron;">ABANG RIDHO</h2>
+            <div class="press-start">Masuk Sini</div>
+        </div>
+    </div>
+    
+    <!-- ELEMEN WARP TRANSITION -->
+    <div id="warp-transition">
+        <div class="warp-core"></div>
+        <div class="warp-text">LOADING...</div>
+    </div>
+
+     <div id="main-ui">
+        <aside class="profile-panel" id="profile-aside">
+            <div class="profile-img">
+                <img src="d:\Caelus.jpg" alt="Admin" onerror="this.src='https://i.pinimg.com/736x/94/b9/13/94b91344f1cc16120c9eaee3ed1f403f.jpg'">
+            </div>
+            <h2 style="text-align: center; color: var(--hsr-gold); font-family: Orbitron;">Ahmad Ridha Lailan</h2>
+            <p style="text-align: center; opacity: 0.6; margin-bottom: 25px;">Astral Express Admin | Lv. 999</p>
+            
+            <div style="border-left: 3px solid var(--hsr-blue); padding-left: 15px; margin-bottom: 20px;">
+                <p style="font-size: 0.7rem; color: var(--hsr-blue);">SYSTEM LOG</p>
+                <p style="font-size: 0.85rem; font-style: italic;">"HIDUP JOKOWI"</p>
+            </div>
+            
+            <p style="font-size: 0.75rem; opacity: 0.9;">Current Destination:</p>
+            <p style="color: var(--hsr-gold);">Konoha - gedung Senayan</p>
+        </aside>
+
+        <main>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                <div style="display: flex; align-items: center; gap: 20px;">
+                    <!-- TOMBOL TOGGLE 3D PROFIL -->
+                    <button class="toggle-btn" onclick="toggleProfile()" title="Toggle Profile">☰</button>
+                    <h1 style="font-family: Orbitron; letter-spacing: 4px;">ARSIP TERLARANG</h1>
+                </div>
+                <input type="text" class="search-box" id="search" style="width: 350px;" placeholder="Filter Character ID..." onkeyup="filterChars()">
+            </div>
+            <div class="char-grid" id="char-list"></div>
+        </main>
+    </div>
+
+    <button id="add-trigger" class="btn-add-float" onclick="showModal()" title="Add New Archive">+</button>
+
+    <!-- MODAL -->
+    <div id="add-modal">
+        <div class="profile-panel" style="width: 500px; transform: none;">
+            <h2 id="modal-title" style="font-family: Orbitron; color: var(--hsr-gold); margin-bottom: 20px;">NEW ARCHIVE ENTRY</h2>
+            <input type="hidden" id="edit-index" value="">
+            <div style="display: grid; gap: 15px;">
+                <input type="text" id="new-name" class="search-box" placeholder="Nama Koleksi">
+                <input type="text" id="new-path" class="search-box" placeholder="pengarang">
+                <input type="text" id="new-release" class="search-box" placeholder="tahun Rilis">
+                <input type="text" id="new-desc" class="search-box" placeholder="Deskripsi Singkat">
+                <input type="text" id="new-img" class="search-box" placeholder="Image URL (Optional)">
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 25px; justify-content: flex-end;">
+                <button class="btn-add-float btn-modal" onclick="saveCharacter()">CONFIRM</button>
+                <button class="btn-add-float btn-modal" style="background:#ff4444; color:white;" onclick="hideModal()">CANCEL</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let characters = [
+            { name: "10 Dosa Besar Soeharto", path: "Politik", release: "2019", desc: "Wimanjaya K. Liotohe", img: "https://perpustakaan.sman1bpp.sch.id/astanacendekia/lib/minigalnano/createthumb.php?filename=images/docs/10_DOSA_BESAR_SOEHARTO.jpg.jpg&width=200" },
+            { name: "Weathering With You", path: "Novel", release: "2019", desc: "Makoto Shinkai", img: "https://image.gramedia.net/rs:fit:0:0/plain/https://cdn.gramedia.com/uploads/items/Weathering_With_You_RbOW2b6.jpg" },
+            { name: "Seporsi Mie Ayam Sebelum Mati", path: "Novel", release: "2025", desc: "Brian Khrisna", img: "https://image.gramedia.net/rs:fit:0:0/plain/https://cdn.gramedia.com/uploads/products/95ob5m98ur.jpg" },
+            { name: "I Parry Everything #2", path: "Novel", release: "2026", desc: "Nabeshiki", img: "https://image.gramedia.net/rs:fit:0:0/plain/https://cdn.gramedia.com/uploads/product-metas/22crrp7i-h.jpg" },
+        ];
+
+        let progress = 0;
+        const loadingInterval = setInterval(() => {
+            progress += Math.random() * 15;
+            if (progress >= 100) {
+                progress = 100;
+                clearInterval(loadingInterval);
+                setTimeout(() => {
+                    document.getElementById('loading-screen').style.opacity = '0';
+                    setTimeout(() => {
+                        document.getElementById('loading-screen').style.display = 'none';
+                        document.getElementById('start-screen').style.display = 'flex';
+                    }, 800);
+                }, 500);
+            }
+            document.getElementById('bar').style.width = progress + '%';
+            document.getElementById('load-text').innerText = Math.floor(progress) + '%';
+        }, 150);
+
+        function enterApp() {
+            // Sembunyikan start screen
+            document.getElementById('start-screen').style.display = 'none';
+            
+            // Tampilkan efek futuristik Warp
+            const warp = document.getElementById('warp-transition');
+            warp.style.display = 'flex';
+            
+            // Beri jeda 2 detik untuk animasi warp sebelum masuk ke UI utama
+            setTimeout(() => {
+                warp.style.display = 'none';
+                document.getElementById('main-ui').style.display = 'grid';
+                document.getElementById('add-trigger').style.display = 'flex';
+                renderCharacters(characters);
+            }, 2000); 
+        }
+
+        // FUNGSI TOGGLE PROFIL 3D
+        function toggleProfile() {
+            const mainUi = document.getElementById('main-ui');
+            const profilePanel = document.getElementById('profile-aside');
+            
+            mainUi.classList.toggle('collapsed-layout');
+            profilePanel.classList.toggle('collapsed');
+        }
+
+        function renderCharacters(data) {
+            const list = document.getElementById('char-list');
+            list.innerHTML = '';
+            data.forEach((char, index) => {
+                const displayImg = char.img || 'https://via.placeholder.com/300x400?text=No+Image';
+                list.innerHTML += `
+                    <div class="char-card">
+                        <div class="options-container">
+                            <button class="dots-btn" onclick="toggleMenu(${index}, event)">&#8942;</button>
+                            <div id="menu-${index}" class="options-menu">
+                                <button onclick="editCharacter(${index})">Edit Data</button>
+                                <button style="color:#ff4444;" onclick="deleteCharacter(${index})">Delete</button>
+                            </div>
+                        </div>
+                        <img src="${displayImg}" onerror="this.src='https://via.placeholder.com/300x400?text=Error'">
+                        <div class="char-details">
+                            <span class="label-tag">${char.path.split('|')[0].trim().toUpperCase()}</span>
+                            <h2 style="font-family: Orbitron; color: var(--hsr-gold); font-size: 1.2rem;">${char.name}</h2>
+                            <p style="font-size: 1.0rem; color: var(--hsr-blue);">${char.release}</p>
+                            <p style="font-size: 0.9em; opacity: 0.7; margin-top:5px;">${char.desc}</p>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function toggleMenu(index, e) {
+            e.stopPropagation();
+            document.querySelectorAll('.options-menu').forEach(m => m.style.display = 'none');
+            document.getElementById(`menu-${index}`).style.display = 'flex';
+        }
+
+        function showModal(isEdit = false) {
+            document.getElementById('add-modal').style.display = 'flex';
+            document.getElementById('modal-title').innerText = isEdit ? "UPDATE ARCHIVE" : "NEW ARCHIVE ENTRY";
+        }
+
+        function hideModal() { 
+            document.getElementById('add-modal').style.display = 'none';
+            document.querySelectorAll('#add-modal input').forEach(i => i.value = '');
+            document.getElementById('edit-index').value = '';
+        }
+
+        function editCharacter(index) {
+            const char = characters[index];
+            document.getElementById('edit-index').value = index;
+            document.getElementById('new-name').value = char.name;
+            document.getElementById('new-path').value = char.path;
+            document.getElementById('new-release').value = char.release;
+            document.getElementById('new-desc').value = char.desc;
+            document.getElementById('new-img').value = char.img;
+            showModal(true);
+        }
+
+        function deleteCharacter(index) {
+            if(confirm("Hapus data ini?")) {
+                characters.splice(index, 1);
+                renderCharacters(characters);
+            }
+        }
+
+        function saveCharacter() {
+            const name = document.getElementById('new-name').value;
+            const index = document.getElementById('edit-index').value;
+            
+            if(name) {
+                const charData = {
+                    name: name,
+                    path: document.getElementById('new-path').value,
+                    release: document.getElementById('new-release').value,
+                    desc: document.getElementById('new-desc').value,
+                    img: document.getElementById('new-img').value 
+                };
+
+                if(index === "") {
+                    characters.unshift(charData); 
+                } else {
+                    characters[index] = charData; 
+                }
+                
+                renderCharacters(characters);
+                hideModal();
+            } else {
+                alert("Name is required!");
+            }
+        }
+
+        function filterChars() {
+            const q = document.getElementById('search').value.toLowerCase();
+            const filtered = characters.filter(c => c.name.toLowerCase().includes(q));
+            renderCharacters(filtered);
+        }
+
+        window.onclick = () => document.querySelectorAll('.options-menu').forEach(m => m.style.display = 'none');
+    </script>
+</body>
+</html>
